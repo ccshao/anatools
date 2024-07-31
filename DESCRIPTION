@@ -1,0 +1,33 @@
+Package: anatools
+Type: Package
+Title: Utility functions
+Version: 0.1.0
+Authors@R: c(
+    person("Chunxuan", "Shao", email = "xx@test.com", role = c("cre", "aut")),
+    person("Jindong", "Zhu", email = "xx@test.com", role = c("aut")))
+Description: Useful R functions.
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.2.3
+Depends: R (>= 3.5.0)
+Imports:
+    data.table,
+    foreach, 
+    future.apply,
+    ggplot2,
+    ggsignif,
+    graphics,
+    grDevices,
+    grid,
+    knitr,
+    magrittr,
+    scales,
+    stats,
+    stringi,
+    stringr,
+    utils
+Suggests:
+    rmarkdown,
+    tinytest
+VignetteBuilder: knitr
