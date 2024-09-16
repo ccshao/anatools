@@ -101,6 +101,7 @@ boxplt_uniq_mult <- function(one_id,
 #' @param cond, a column name to be used as grouping (e.g., x-axis).
 #' @param plot_type, "boxplot" or "barplot".
 #' @param plt_palette, color palette for plotting.
+#' @param with_beeswarm, whether add beeswarm points to the boxplots.
 #' @param test_comp, list for comparisons among groups. E.g., list(c("A", "B")): A vs. B. Student's t-test is used.
 #' @param test_method, t-test is used as default.
 #' @param title, title info.
@@ -108,8 +109,10 @@ boxplt_uniq_mult <- function(one_id,
 #' @param title_wrap, number of characters to wrap the title.
 #' @param xlab, xlab info.
 #' @param ylab, ylab info.
+#' @param ylim, a vector of y limits. c(NA, 1): NA means automatic scaling.
 #' @param ylab_rotate, whether rotate the ylab 90 degree.
 #' @param paired_test, whether paired t-test is used.
+#' @param return_plt, whether return the ggplot object.
 #' @param width, width of the figure.
 #' @param height, height of the figure.
 #' @param plt_pref, prefix for the figure names.
@@ -122,6 +125,7 @@ bbplt <- function(g,
     cond,
     plot_type = c("boxplot", "barplot"),
     plt_palette,
+    with_beeswarm = FALSE,
     test_comp = list(),
     test_method = "t.test",
     title,
@@ -129,13 +133,16 @@ bbplt <- function(g,
     title_wrap = 50,
     xlab = "",
     ylab = "",
+    ylim = NULL,
     ylab_rotate = FALSE,
     paired_test = FALSE,
+    return_plt = FALSE,
     width = 6,
     height = 7,
     plt_pref = "",
     plt_dir = ".") {
-  if (!("ggsignif" %in% utils::installed.packages()[, "Package"])) stop("(EE) Require the package ggsignif")
+  if (!("ggsignif" %in% utils::installed.packages()[, "Package"])) stop("(EE) Require the package ggsignif.")
+  if (!("ggbeeswarm" %in% utils::installed.packages()[, "Package"])) stop("(EE) Require the package ggbeeswarm.")
 
   value <- NULL
 
@@ -148,12 +155,15 @@ bbplt <- function(g,
     if (plot_type == "boxplot") {
       p00 <- ggplot(as.data.frame(plt_dta), aes(.data[[cond]], value, fill = .data[[cond]])) +
         geom_boxplot()
+      if (with_beeswarm) p00 <- p00 + geom_beeswarm(cex = 3)
     } else {
       p00 <- ggplot(as.data.frame(plt_dta), aes(.data[[cond]], value, fill = .data[[cond]])) +
         stat_summary(geom = "bar", fun.y = mean, position = "dodge", width = 0.6) +
         stat_summary(geom = "errorbar", fun.data = mean_se, position = "dodge", width = 0.2) +
         geom_point(position = position_jitter(width = 0.05))
     }
+
+    if (! is.null(ylim)) p00 <- p00 + ylim(ylim)
 
     p01 <- p00 +
       labs(x = xlab, y = paste(g, ylab), title = stringr::str_wrap(title, title_wrap), subtitle = stringr::str_wrap(subtitle, 50)) +
@@ -169,8 +179,10 @@ bbplt <- function(g,
 
     ggsave(paste0(plt_pref, "_", g, ".png") %>% file.path(plt_dir, .),
            p01,
-           width = width,
+           width  = width,
            height = height)
+
+    if (return_plt) return(p01)
   } else {
     message("(II) ", g, " NOT found!")
   }

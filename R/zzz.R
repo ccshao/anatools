@@ -8,6 +8,7 @@
 #' @importFrom grDevices dev.off pdf rainbow palette.colors
 #' @importFrom grid gpar
 #' @importFrom ggsignif geom_signif
+#' @importFrom ggbeeswarm geom_beeswarm
 NULL
 
 #- deal with . in magrittr
