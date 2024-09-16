@@ -155,10 +155,11 @@ bbplt <- function(g,
     if (plot_type == "boxplot") {
       p00 <- ggplot(as.data.frame(plt_dta), aes(.data[[cond]], value, fill = .data[[cond]])) +
         geom_boxplot()
+
       if (with_beeswarm) p00 <- p00 + geom_beeswarm(cex = 3)
     } else {
       p00 <- ggplot(as.data.frame(plt_dta), aes(.data[[cond]], value, fill = .data[[cond]])) +
-        stat_summary(geom = "bar", fun.y = mean, position = "dodge", width = 0.6) +
+        stat_summary(geom = "bar", fun = mean, position = "dodge", width = 0.6) +
         stat_summary(geom = "errorbar", fun.data = mean_se, position = "dodge", width = 0.2) +
         geom_point(position = position_jitter(width = 0.05))
     }

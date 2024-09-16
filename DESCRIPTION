@@ -15,6 +15,7 @@ Imports:
     data.table,
     foreach, 
     future.apply,
+    ggbeeswarm,
     ggplot2,
     ggsignif,
     graphics,
