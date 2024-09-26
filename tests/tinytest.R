@@ -1,3 +1,3 @@
 if (require(tinytest, quietly = TRUE)) {
-  tinytest::test_package("ll")
+  tinytest::test_package("anatools")
 }

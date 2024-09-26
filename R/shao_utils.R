@@ -5,7 +5,7 @@ knitr::kable
 
 #' Load a set of libraries
 #' @export
-loadlib <- function() lapply(c("ll", "colorout", "magrittr", "data.table"), library, character.only = TRUE) %>% invisible()
+loadlib <- function() lapply(c("anatools", "colorout", "magrittr", "data.table"), library, character.only = TRUE) %>% invisible()
 
 
 #' Get the ids of down/up-regulated genes from DESeq2.
