@@ -33,7 +33,6 @@ split_updown <- function(x, to_file = TRUE) {
 #' @param r number of rows to show.
 #' @param c number of columns to show.
 #' @export
-# cn <- function(...) useful::corner(...)
 cn <- function(x, r = 5L, c = 5L) {
   r <- if (nrow(x) < r) nrow(x) else r
   c <- if (ncol(x) < c) ncol(x) else c
@@ -627,5 +626,249 @@ get_geo <- function(x, GPL, gene_anno = NULL) {
     ex_g <- cc_1[cc_1[, .I[(which.max(ravg))], by = "symbol"]$V1] %>%
       .[, ravg := NULL]
     return(list(ex_f = ex_f, ex_anno = ex_anno, ex_g = ex_g, gset = gset, ex_all = ex))
+  }
+}
+
+
+#' Collect and merge non-synonymous mutations and CNA from Depmap and cosmic for cell lines.
+#'
+#' Get the annoations of cell lines relying on the Depmap IDs.
+#'
+#' @param g, a vector of interested genes. !! First check if any symbols missed in the Depmap expression data.
+#' @param sample_ano, a data.table MUST with columns of cell_line and ModelID.
+#' @param dp_cm, cosmic id <--> Depmap id.
+#' @param dp_expr, Depmap expression data.
+#' @param MUT_CNA, whether extracting MUT and CNA data from Depmap and Cosmic.
+#' @param dp_mut, Depmap mutations data.
+#' @param dp_cna, Depmap CNA data.
+#' @param cm_mut, Cosmic mutations data.
+#' @param cm_cna, Cosmic CNA data.
+#' @return A list of annotations.
+#' @examples
+#' \dontrun{
+#' 'load("Depmap/24Q2/data.DepMap.24Q2.rda")
+#' '#- Get the symbols for CNA and expression.
+#' 'colnames(cna_tab)  <- gsub("\\s.*$", "", colnames(cna_tab), perl = TRUE)
+#' 'colnames(expr_tab) <- gsub("\\s.*$", "", colnames(expr_tab), perl = TRUE)
+#' '#- COSMIC data.
+#' 'cm_mut <- qs::qread("CellLinesProject_GenomeScreensMutant_v100_GRCh38.qs", nthreads = 4)
+#' 'cm_cna <- readRDS("CellLinesProject_CompleteCNA_v100_GRCh38.rds")
+#' 'dp_cm  <- readRDS("CellLinesProject_Sample_v100_GRCh38_depmapID.rds")
+#' '
+#' '#- Mutations and CNA
+#' 'g <- c("KRAS", "TP53", "ALK", "BRAF", "CDKN2A", )
+#' 'res_1 <- fn_cosmic_mut_cna(g, ano, dp_cm, expr_tab, MUT_CNA = TRUE,
+#'   dp_mut_tab, cna_tab, cm_mut, cm_cna)
+#'
+#' '#- Expression for the CBM genes.
+#' 'g <- c("KRAS", "EGFR", "CARD9", "CARD10")
+#' 'res_2 <- fn_cosmic_mut_cna(g, ano, dp_cm, expr_tab, MUT_CNA = FALSE)
+#' }
+#' @export
+depmap_cosmic_mut_cna <- function(g,
+    sample_ano,
+    dp_cm,
+    dp_expr,
+    MUT_CNA = FALSE,
+    dp_mut,
+    dp_cna,
+    cm_mut,
+    cm_cna) {
+  #>>#########################################################
+  #- !! Expression data.
+  #- Remove cells without ModelID.
+  cell_line <- ModelID <- Hugo_Symbol <- Chromosome <- Protein_Change <- Variant_Classification <- gr <- value <- NULL
+  MUTATION_DESCRIPTION <- MUTATION_AA <- GENE_SYMBOL <- COSMIC_SAMPLE_ID <- depmap_ModelID <- MUT_TYPE <- ii <- jj <- NULL
+
+  exp_tab_2 <- dp_expr[, intersect(g, colnames(dp_expr))] %>%
+    as.data.table(keep.rownames = TRUE) %>%
+    merge(sample_ano[, .(cell_line, ModelID)], ., by.x = "ModelID", by.y = "rn") %>%
+    .[sample_ano$cell_line, on = "cell_line"] %>%
+    .[, ModelID := NULL] %>%
+    setcolorder("cell_line") %>%
+    setnames(1, "cell") %>%
+    setnames(names(.)[-1], paste0(names(.)[-1], "_log2TPM"))
+
+  #- Round the data.
+  sdcol <- grep("_log2TPM", names(exp_tab_2), value = TRUE)
+  exp_tab_2[, (sdcol) := lapply(.SD, \(x) round(x, 2)), .SDcols = sdcol]
+
+  #- TPM value.
+  mtx <- exp_tab_2[, -"cell"] %>%
+    as.matrix() %>%
+    {2**. - 1} %>%
+    round(2) %>%
+    set_colnames(gsub("_log2", "_", colnames(.)))
+
+  #- Combine the log2TPM and TPM
+  exp_tab_2 <- cbind(exp_tab_2, as.data.table(mtx))
+
+  #<<#########################################################
+
+
+  #>>#########################################################
+  #- !! Mutations and CNA in Depmap.
+  if (MUT_CNA) {
+    #- !! Mutations Depmap
+    #- Remove the synonymous mutations
+    dp_mut_2 <- dp_mut[!(dp_mut$Variant_Classification %in% c("3'Flank", "5'Flank", "5'UTR", "RNA")), ] %>%
+      as.data.table %>%
+      .[Hugo_Symbol %in% g] %>%
+      merge(sample_ano[, .(cell_line, ModelID)], by = "ModelID") %>% #- Keep wanted cells.
+      .[, .(ModelID, Chromosome, Hugo_Symbol, Protein_Change, Variant_Classification, cell_line)] %>%
+      unique %>%
+      .[, Protein_Change := gsub("Ter", "*", Protein_Change)] #- Align with COSMIC for termination, which uses Ter for termination.
+
+    #- wide.
+    dp_mut_2_w <- dcast(dp_mut_2, cell_line ~ Hugo_Symbol, value.var = "Protein_Change", fun.aggregate = \(x) paste(x, collapse = ";")) %>%
+      setnames(1, "cell") %>%
+      setnames(names(.)[-1], paste0(names(.)[-1], "_Mut")) %>%
+      .[sample_ano$cell_line, on = "cell"] #- To include all cells
+
+    #- Now treat them as WT, later if ModelID is na, replace with NA.
+    #- If those genes are all WT in a cell line, the above "on = "cell"" make NA as well.
+    dp_mut_2_w[is.na(dp_mut_2_w)] <- ""
+
+    #- !! CNA Depmap
+    #- Mina methods for CNA categories.
+    dp_cna_2 <- dp_cna[, intersect(g, colnames(dp_cna))] %>%
+      as.data.table(keep.rownames = TRUE) %>%
+      melt(id.vars = "rn") %>%
+      merge(sample_ano[, .(cell_line, ModelID)], by.x = "rn", by.y = "ModelID") %>%
+      .[, gr := fcase(value < 0.87/2, "DeepDel",
+                      value >= 0.87/2 & value < 1.32/2, "ShallowDel",
+                      value > 2.64/2 & value <= 3.36/2, "Gain",
+                      value > 3.36/2, "AMP",
+                      default = "")]
+
+    dp_cna_2_w <- dcast(dp_cna_2, cell_line ~ variable, value.var = "gr") %>%
+      setnames(1, "cell") %>%
+      setnames(names(.)[-1], paste0(names(.)[-1], "_CNA")) %>%
+      .[sample_ano$cell_line, on = "cell"]
+
+    dp_cna_2_w[is.na(dp_cna_2_w)] <- ""
+
+    stopifnot(identical(dp_mut_2_w$cell, dp_cna_2_w$cell))
+    stopifnot(identical(exp_tab_2$cell, dp_cna_2_w$cell))
+
+    # dp_ano <- cbind(dp_mut_2_w, dp_cna_2_w[, -"cell"]) %>%
+    dp_ano <- Reduce(cbind, list(dp_mut_2_w, dp_cna_2_w[, -"cell"], exp_tab_2[, -"cell"])) %>%
+      cbind(ModelID = sample_ano[, ModelID], .)
+    #<<#########################################################
+
+    #>>#########################################################
+    #- !! COSMIC mutations and CNA.
+    #- !! remove synonymous_variant, "p.?"
+    # 187324927     c.1_*del         p.0
+    #- About 10 mutations in intron_variant leads to protein seq changes.
+    #- 5_prime_UTR_variant has protein change muations as well.
+    cm_mut_2 <- cm_mut[MUTATION_DESCRIPTION != "synonymous_variant"] %>%
+      .[MUTATION_AA != "p.?"] %>%
+      .[GENE_SYMBOL %in% g] %>%
+      merge(dp_cm[, .(COSMIC_SAMPLE_ID, depmap_ModelID)], by.x = "COSMIC_SAMPLE_ID", by.y = "COSMIC_SAMPLE_ID") %>% #- Add depmap ids.
+      merge(sample_ano[, .(cell_line, ModelID)], by.x = "depmap_ModelID", by.y = "ModelID") %>%
+      .[, .(depmap_ModelID, COSMIC_SAMPLE_ID, GENE_SYMBOL, MUTATION_AA, cell_line)] %>%
+      unique
+
+    cm_mut_2_w <- dcast(cm_mut_2, cell_line ~ GENE_SYMBOL, value.var = "MUTATION_AA", fun.aggregate = \(x) paste(x, collapse = ";")) %>%
+      setnames(1, "cell") %>%
+      setnames(names(.)[-1], paste0(names(.)[-1], "_Mut")) %>%
+      .[sample_ano$cell_line, on = "cell"] #- To include all cells
+
+    cm_mut_2_w[is.na(cm_mut_2_w)] <- ""
+
+    cm_cna_2 <- cm_cna[GENE_SYMBOL %in% g] %>%
+      .[, gr := MUT_TYPE] %>%
+      .[MUT_TYPE == "gain", gr := "AMP"] %>%
+      .[MUT_TYPE == "loss", gr := "DeepDel"] %>%
+      merge(dp_cm[, .(COSMIC_SAMPLE_ID, depmap_ModelID)], by.x = "COSMIC_SAMPLE_ID", by.y = "COSMIC_SAMPLE_ID") %>%
+      merge(sample_ano[, .(cell_line, ModelID)], by.x = "depmap_ModelID", by.y = "ModelID")
+
+    cm_cna_2_w <- dcast(cm_cna_2, cell_line ~ GENE_SYMBOL, value.var = "gr") %>%
+      setnames(1, "cell") %>%
+      setnames(names(.)[-1], paste0(names(.)[-1], "_CNA")) %>%
+      .[sample_ano$cell_line, on = "cell"]
+
+    cm_cna_2_w[is.na(cm_cna_2_w)] <- ""
+    #<<#########################################################
+
+    # identical(dp$cell, cm$cell)
+    stopifnot(identical(dp_ano$cell, cm_mut_2_w$cell))
+    stopifnot(identical(dp_ano$cell, cm_cna_2_w$cell))
+
+    #>>#########################################################
+    #- Merge mutation data.
+    #- overlapping mutation genes
+    o_mut <- intersect(grep("_Mut", names(dp_ano), value = TRUE), grep("_Mut", names(cm_mut_2_w), value = TRUE))
+    comb_mut <- sapply(o_mut, \(x) {
+                    cc_dp <- dp_ano[[x]]
+                    cc_cm <- cm_mut_2_w[[x]]
+
+                    foreach(ii = cc_dp, jj = cc_cm, .combine = c) %do% {
+                      if (ii == "" & jj == "") {
+                        ""
+                      } else if (ii != "" & jj == "") {
+                        ii
+                      } else if (ii == "" & jj != "") {
+                        jj
+                      } else if (ii != "" & jj != "") {
+                        paste(unique(c(unlist(strsplit(ii, ";")), unlist(strsplit(jj, ";")))), collapse = ";")
+                      }
+                    }
+    }) %>% as.data.table
+    #<<#########################################################
+
+    #>>#########################################################
+    #- Merge CNA data.
+    o_cna <- intersect(grep("_CNA", names(dp_ano), value = TRUE), grep("_CNA", names(cm_cna_2_w), value = TRUE))
+    comb_cna <- sapply(o_cna, \(x) {
+                    cc_dp <- dp_ano[[x]]
+                    cc_cm <- cm_cna_2_w[[x]]
+
+                    foreach(ii = cc_dp, jj = cc_cm, .combine = c) %do% {
+                      if (ii == "" & jj == "") {
+                        ""
+                      } else if (ii != "" & jj == "") {
+                        ii
+                      } else if (ii == "" & jj != "") {
+                        jj
+                      } else if (ii != "" & jj != "") {
+                        paste(unique(c(unlist(strsplit(ii, ";")), unlist(strsplit(jj, ";")))), collapse = ";")
+                      }
+                    }
+    }) %>% as.data.table
+    #<<#########################################################
+
+  #- cell, mut from dp, mut from cm, cna from dp
+    comb_res <- cbind(dp_ano[, c("ModelID", "cell"), with = FALSE],
+                      comb_mut, #- Combined mutations.
+                      dp_ano[, setdiff(grep("_Mut", names(dp_ano), value = TRUE), o_mut), with = FALSE], # mutatons in depmap
+                      cm_mut_2_w[, setdiff(grep("_Mut", names(cm_mut_2_w), value = TRUE), o_mut), with = FALSE], # mutations in COSMIC
+                      comb_cna, #- combined CNA
+                      dp_ano[, setdiff(grep("_CNA", names(dp_ano), value = TRUE), o_cna), with = FALSE], # CNA in depmap
+                      cm_cna_2_w[, setdiff(grep("_CNA", names(cm_cna_2_w), value = TRUE), o_cna), with = FALSE], # CNA in COSMIC
+                      dp_ano[, grep("TPM", names(dp_ano), value = TRUE), with = FALSE])
+
+    #- After combined with COSMIC data.
+    sdcol_1 <- grep("_Mut|_CNA", names(comb_res), value = TRUE)
+    # sdcol_2 <- grep("TPM", names(comb_res), value = TRUE)
+
+    #- Has not tested on NA ModelID yet.
+    comb_res[is.na(ModelID), (sdcol_1) := lapply(.SD, \(x) x <- "N/A"), .SDcols = sdcol_1]
+    # comb_res[is.na(ModelID), (sdcol_2) := lapply(.SD, \(x) x <- NA), .SDcols = sdcol_2]
+
+    return(list(final_results = comb_res,
+                depmap_ano    = dp_ano,
+                depmap_epxr   = exp_tab_2,
+                depmap_mut    = dp_mut_2,
+                depmap_mut_w  = dp_mut_2_w,
+                depmap_cna    = dp_cna_2,
+                depmap_cna_w  = dp_cna_2_w,
+                cosmic_mut    = cm_cna_2,
+                cosmic_mut_w  = cm_cna_2_w,
+                cosmic_cna    = cm_cna_2,
+                cosmic_cna_w  = cm_cna_2_w))
+  } else {
+    return(exp_tab_2)
   }
 }
