@@ -680,7 +680,7 @@ depmap_cosmic_mut_cna <- function(g,
   cell_line <- ModelID <- Hugo_Symbol <- Chromosome <- Protein_Change <- Variant_Classification <- gr <- value <- NULL
   MUTATION_DESCRIPTION <- MUTATION_AA <- GENE_SYMBOL <- COSMIC_SAMPLE_ID <- depmap_ModelID <- MUT_TYPE <- ii <- jj <- NULL
 
-  exp_tab_2 <- dp_expr[, intersect(g, colnames(dp_expr))] %>%
+  exp_tab_2 <- dp_expr[, intersect(g, colnames(dp_expr)), drop = FALSE] %>%
     as.data.table(keep.rownames = TRUE) %>%
     merge(sample_ano[, .(cell_line, ModelID)], ., by.x = "ModelID", by.y = "rn") %>%
     .[sample_ano$cell_line, on = "cell_line"] %>%
@@ -770,7 +770,7 @@ depmap_cosmic_mut_cna <- function(g,
       .[, .(depmap_ModelID, COSMIC_SAMPLE_ID, GENE_SYMBOL, MUTATION_AA, cell_line)] %>%
       unique
 
-    cm_mut_2_w <- dcast(cm_mut_2, cell_line ~ GENE_SYMBOL, value.var = "MUTATION_AA", fun.aggregate = \(x) paste(x, collapse = ";")) %>%
+    cm_mut_2_w <- dcast(cm_mut_2[, .(cell_line, GENE_SYMBOL, MUTATION_AA)] %>% unique, cell_line ~ GENE_SYMBOL, value.var = "MUTATION_AA", fun.aggregate = \(x) paste(x, collapse = ";")) %>%
       setnames(1, "cell") %>%
       setnames(names(.)[-1], paste0(names(.)[-1], "_Mut")) %>%
       .[sample_ano$cell_line, on = "cell"] #- To include all cells
@@ -784,7 +784,20 @@ depmap_cosmic_mut_cna <- function(g,
       merge(dp_cm[, .(COSMIC_SAMPLE_ID, depmap_ModelID)], by.x = "COSMIC_SAMPLE_ID", by.y = "COSMIC_SAMPLE_ID") %>%
       merge(sample_ano[, .(cell_line, ModelID)], by.x = "depmap_ModelID", by.y = "ModelID")
 
-    cm_cna_2_w <- dcast(cm_cna_2, cell_line ~ GENE_SYMBOL, value.var = "gr") %>%
+    #- !! In rare case there are multiple CNA events
+    #    depmap_ModelID COSMIC_SAMPLE_ID COSMIC_CNV_ID COSMIC_GENE_ID GENE_SYMBOL
+    #            <char>           <char>        <char>         <char>      <char>
+    # 1:     ACH-000496       COSS724868 COSCNV6310492      COSG68225        XPO1
+    # 2:     ACH-000496       COSS724868 COSCNV6310746      COSG68225        XPO1
+    #    SAMPLE_NAME COSMIC_PHENOTYPE_ID TOTAL_CN MINOR_ALLELE MUT_TYPE
+    #         <char>              <char>    <int>        <int>   <char>
+    # 1:   NCI-H1792        COSO29915674        5            1     gain
+    # 2:   NCI-H1792        COSO29915674        6            1     gain
+    #    COSMIC_STUDY_ID CHROMOSOME GENOME_START GENOME_STOP     gr cell_line
+    #             <char>     <char>        <int>       <int> <char>    <char>
+    # 1:         COSU619          2     61494856    65564634    AMP  NCIH1792
+    # 2:         COSU619          2     57777333    61494483    AMP  NCIH1792
+    cm_cna_2_w <- dcast(cm_cna_2[, .(cell_line, GENE_SYMBOL, gr)] %>% unique, cell_line ~ GENE_SYMBOL, value.var = "gr") %>%
       setnames(1, "cell") %>%
       setnames(names(.)[-1], paste0(names(.)[-1], "_CNA")) %>%
       .[sample_ano$cell_line, on = "cell"]
