@@ -731,7 +731,7 @@ depmap_cosmic_mut_cna <- function(g,
 
     #- !! CNA Depmap
     #- Mina methods for CNA categories.
-    dp_cna_2 <- dp_cna[, intersect(g, colnames(dp_cna))] %>%
+    dp_cna_2 <- dp_cna[, intersect(g, colnames(dp_cna)), drop = FALSE] %>%
       as.data.table(keep.rownames = TRUE) %>%
       melt(id.vars = "rn") %>%
       merge(sample_ano[, .(cell_line, ModelID)], by.x = "rn", by.y = "ModelID") %>%
@@ -797,12 +797,21 @@ depmap_cosmic_mut_cna <- function(g,
     #             <char>     <char>        <int>       <int> <char>    <char>
     # 1:         COSU619          2     61494856    65564634    AMP  NCIH1792
     # 2:         COSU619          2     57777333    61494483    AMP  NCIH1792
-    cm_cna_2_w <- dcast(cm_cna_2[, .(cell_line, GENE_SYMBOL, gr)] %>% unique, cell_line ~ GENE_SYMBOL, value.var = "gr") %>%
-      setnames(1, "cell") %>%
-      setnames(names(.)[-1], paste0(names(.)[-1], "_CNA")) %>%
-      .[sample_ano$cell_line, on = "cell"]
 
-    cm_cna_2_w[is.na(cm_cna_2_w)] <- ""
+    #- NO CNA from COSMIC
+    if (nrow(cm_cna_2) != 0) {
+      cm_cna_2_w <- dcast(cm_cna_2[, .(cell_line, GENE_SYMBOL, gr)] %>% unique, cell_line ~ GENE_SYMBOL, value.var = "gr") %>%
+        setnames(1, "cell") %>%
+        setnames(names(.)[-1], paste0(names(.)[-1], "_CNA")) %>%
+        .[sample_ano$cell_line, on = "cell"]
+
+      cm_cna_2_w[is.na(cm_cna_2_w)] <- ""
+    } else {
+      cc_1 <- paste0(g, "_CNA")
+      cm_cna_2_w <- data.table(cell = sample_ano$cell_line) %>%
+        .[, (cc_1) := ""]
+    }
+
     #<<#########################################################
 
     # identical(dp$cell, cm$cell)
