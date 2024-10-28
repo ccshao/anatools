@@ -712,9 +712,9 @@ depmap_cosmic_mut_cna <- function(g,
     #- Find ModelID without Mut data.
     dp_mut_no_cell <- dp_mut[!(dp_mut$Variant_Classification %in% c("3'Flank", "5'Flank", "5'UTR", "RNA")), ] %>%
       as.data.table %>%
-      setdiff(sample_ano$ModelID[sample_ano$ModelID != ""], .$ModelID)
+      {setdiff(sample_ano$ModelID[sample_ano$ModelID != ""], .$ModelID)}
 
-    if (length(dp_mut_no_cell) > 0) message("ModelID without Mut data:", paste(dp_mut_no_cell, callapse = ";"))
+    if (length(dp_mut_no_cell) > 0) message("ModelID without Mut data: ", paste0(dp_mut_no_cell, callapse = ";"))
 
     #- !! Mutations Depmap
     #- Remove the synonymous mutations
@@ -740,7 +740,7 @@ depmap_cosmic_mut_cna <- function(g,
     #- Mina methods for CNA categories.
     dp_cna_no_cell <- setdiff(sample_ano$ModelID[sample_ano$ModelID != ""], rownames(dp_cna))
 
-    if (length(dp_cna_no_cell) > 0) message("ModelID without CNA data:", paste(dp_cna_no_cell, callapse = ";"))
+    if (length(dp_cna_no_cell) > 0) message("ModelID without CNA data:", paste0(dp_cna_no_cell, callapse = ";"))
 
     dp_cna_2 <- dp_cna[, intersect(g, colnames(dp_cna)), drop = FALSE] %>%
       as.data.table(keep.rownames = TRUE) %>%

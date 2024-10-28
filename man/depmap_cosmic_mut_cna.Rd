@@ -19,7 +19,7 @@ depmap_cosmic_mut_cna(
 \arguments{
 \item{g, }{a vector of interested genes. !! First check if any symbols missed in the Depmap expression data.}
 
-\item{sample_ano, }{a data.table MUST with columns of cell_line and ModelID.}
+\item{sample_ano, }{a data.table MUST with columns of cell_line and ModelID. If ModelID is not available, then it is "".}
 
 \item{dp_cm, }{cosmic id <--> Depmap id.}
 
