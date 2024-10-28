@@ -724,7 +724,7 @@ depmap_cosmic_mut_cna <- function(g,
       merge(sample_ano[, .(cell_line, ModelID)], by = "ModelID") %>% #- Keep wanted cells.
       .[, .(ModelID, Chromosome, Hugo_Symbol, Protein_Change, Variant_Classification, cell_line)] %>%
       unique %>%
-      .[, Protein_Change := gsub("Ter", "*", Protein_Change)] #- Align with COSMIC for termination, which uses Ter for termination.
+      .[, Protein_Change := gsub("Ter", "*", Protein_Change)] #- Align with COSMIC for termination, which uses * for termination.
 
     #- wide.
     dp_mut_2_w <- dcast(dp_mut_2, cell_line ~ Hugo_Symbol, value.var = "Protein_Change", fun.aggregate = \(x) paste(x, collapse = ";")) %>%
