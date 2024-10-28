@@ -894,6 +894,7 @@ depmap_cosmic_mut_cna <- function(g,
     sdcol_3 <- grep("_CNA", names(comb_res), value = TRUE)
     #- If the annotation is empty, change to N/A. If annotated by COSMIC, wont be updated.
     comb_res[ModelID %in% dp_cna_no_cell, (sdcol_3) := lapply(.SD, \(x) x[x == ""] <- "N/A"), .SDcols = sdcol_3]
+
     return(list(final_results = comb_res,
                 depmap_ano    = dp_ano,
                 depmap_epxr   = exp_tab_2,
