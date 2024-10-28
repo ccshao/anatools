@@ -635,7 +635,7 @@ get_geo <- function(x, GPL, gene_anno = NULL) {
 #' Get the annoations of cell lines relying on the Depmap IDs.
 #'
 #' @param g, a vector of interested genes. !! First check if any symbols missed in the Depmap expression data.
-#' @param sample_ano, a data.table MUST with columns of cell_line and ModelID.
+#' @param sample_ano, a data.table MUST with columns of cell_line and ModelID. If ModelID is not available, then it is "".
 #' @param dp_cm, cosmic id <--> Depmap id.
 #' @param dp_expr, Depmap expression data.
 #' @param MUT_CNA, whether extracting MUT and CNA data from Depmap and Cosmic.
@@ -709,6 +709,13 @@ depmap_cosmic_mut_cna <- function(g,
   #>>#########################################################
   #- !! Mutations and CNA in Depmap.
   if (MUT_CNA) {
+    #- Find ModelID without Mut data.
+    dp_mut_no_cell <- dp_mut[!(dp_mut$Variant_Classification %in% c("3'Flank", "5'Flank", "5'UTR", "RNA")), ] %>%
+      as.data.table %>%
+      setdiff(sample_ano$ModelID[sample_ano$ModelID != ""], .$ModelID)
+
+    if (length(dp_mut_no_cell) > 0) message("ModelID without Mut data:", paste(dp_mut_no_cell, callapse = ";"))
+
     #- !! Mutations Depmap
     #- Remove the synonymous mutations
     dp_mut_2 <- dp_mut[!(dp_mut$Variant_Classification %in% c("3'Flank", "5'Flank", "5'UTR", "RNA")), ] %>%
@@ -731,6 +738,10 @@ depmap_cosmic_mut_cna <- function(g,
 
     #- !! CNA Depmap
     #- Mina methods for CNA categories.
+    dp_cna_no_cell <- setdiff(sample_ano$ModelID[sample_ano$ModelID != ""], rownames(dp_cna))
+
+    if (length(dp_cna_no_cell) > 0) message("ModelID without CNA data:", paste(dp_cna_no_cell, callapse = ";"))
+
     dp_cna_2 <- dp_cna[, intersect(g, colnames(dp_cna)), drop = FALSE] %>%
       as.data.table(keep.rownames = TRUE) %>%
       melt(id.vars = "rn") %>%
@@ -871,14 +882,18 @@ depmap_cosmic_mut_cna <- function(g,
                       cm_cna_2_w[, setdiff(grep("_CNA", names(cm_cna_2_w), value = TRUE), o_cna), with = FALSE], # CNA in COSMIC
                       dp_ano[, grep("TPM", names(dp_ano), value = TRUE), with = FALSE])
 
-    #- After combined with COSMIC data.
+    #- After combined with COSMIC data, if ModelID is empty, change to N/A
     sdcol_1 <- grep("_Mut|_CNA", names(comb_res), value = TRUE)
-    # sdcol_2 <- grep("TPM", names(comb_res), value = TRUE)
+    comb_res[ModelID == "", (sdcol_1) := lapply(.SD, \(x) x <- "N/A"), .SDcols = sdcol_1]
 
-    #- Has not tested on NA ModelID yet.
-    comb_res[is.na(ModelID), (sdcol_1) := lapply(.SD, \(x) x <- "N/A"), .SDcols = sdcol_1]
-    # comb_res[is.na(ModelID), (sdcol_2) := lapply(.SD, \(x) x <- NA), .SDcols = sdcol_2]
+    #- ModelID is available but no Mut or CNA, e.g., only screen data in Depmap.
+    sdcol_2 <- grep("_Mut", names(comb_res), value = TRUE)
+    #- If the annotation is empty, change to N/A. If annotated by COSMIC, wont be updated.
+    comb_res[ModelID %in% dp_mut_no_cell, (sdcol_2) := lapply(.SD, \(x) x[x == ""] <- "N/A"), .SDcols = sdcol_2]
 
+    sdcol_3 <- grep("_CNA", names(comb_res), value = TRUE)
+    #- If the annotation is empty, change to N/A. If annotated by COSMIC, wont be updated.
+    comb_res[ModelID %in% dp_cna_no_cell, (sdcol_3) := lapply(.SD, \(x) x[x == ""] <- "N/A"), .SDcols = sdcol_3]
     return(list(final_results = comb_res,
                 depmap_ano    = dp_ano,
                 depmap_epxr   = exp_tab_2,
