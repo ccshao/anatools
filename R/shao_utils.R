@@ -740,7 +740,7 @@ depmap_cosmic_mut_cna <- function(g,
     #- Mina methods for CNA categories.
     dp_cna_no_cell <- setdiff(sample_ano$ModelID[sample_ano$ModelID != ""], rownames(dp_cna))
 
-    if (length(dp_cna_no_cell) > 0) message("ModelID without CNA data:", paste0(dp_cna_no_cell, callapse = ";"))
+    if (length(dp_cna_no_cell) > 0) message("ModelID without CNA data: ", paste0(dp_cna_no_cell, callapse = ";"))
 
     dp_cna_2 <- dp_cna[, intersect(g, colnames(dp_cna)), drop = FALSE] %>%
       as.data.table(keep.rownames = TRUE) %>%
