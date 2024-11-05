@@ -781,19 +781,18 @@ depmap_cosmic_mut_cna <- function(g,
       .[, .(depmap_ModelID, COSMIC_SAMPLE_ID, GENE_SYMBOL, MUTATION_AA, cell_line)] %>%
       unique
 
-    cm_mut_2_w <- dcast(cm_mut_2[, .(cell_line, GENE_SYMBOL, MUTATION_AA)] %>% unique, cell_line ~ GENE_SYMBOL, value.var = "MUTATION_AA", fun.aggregate = \(x) paste(x, collapse = ";")) %>%
-      setnames(1, "cell") %>%
-      setnames(names(.)[-1], paste0(names(.)[-1], "_Mut")) %>%
-      .[sample_ano$cell_line, on = "cell"] #- To include all cells
+    if (nrow(cm_mut_2) != 0) {
+      cm_mut_2_w <- dcast(cm_mut_2[, .(cell_line, GENE_SYMBOL, MUTATION_AA)] %>% unique, cell_line ~ GENE_SYMBOL, value.var = "MUTATION_AA", fun.aggregate = \(x) paste(x, collapse = ";")) %>%
+        setnames(1, "cell") %>%
+        setnames(names(.)[-1], paste0(names(.)[-1], "_Mut")) %>%
+        .[sample_ano$cell_line, on = "cell"] #- To include all cells
 
-    cm_mut_2_w[is.na(cm_mut_2_w)] <- ""
-
-    cm_cna_2 <- cm_cna[GENE_SYMBOL %in% g] %>%
-      .[, gr := MUT_TYPE] %>%
-      .[MUT_TYPE == "gain", gr := "AMP"] %>%
-      .[MUT_TYPE == "loss", gr := "DeepDel"] %>%
-      merge(dp_cm[, .(COSMIC_SAMPLE_ID, depmap_ModelID)], by.x = "COSMIC_SAMPLE_ID", by.y = "COSMIC_SAMPLE_ID") %>%
-      merge(sample_ano[, .(cell_line, ModelID)], by.x = "depmap_ModelID", by.y = "ModelID")
+      cm_mut_2_w[is.na(cm_mut_2_w)] <- ""
+    } else {
+      cc_1 <- paste0(g, "_Mut")
+      cm_mut_2_w <- data.table(cell = sample_ano$cell_line) %>%
+        .[, (cc_1) := ""]
+    }
 
     #- !! In rare case there are multiple CNA events
     #    depmap_ModelID COSMIC_SAMPLE_ID COSMIC_CNV_ID COSMIC_GENE_ID GENE_SYMBOL
@@ -808,6 +807,13 @@ depmap_cosmic_mut_cna <- function(g,
     #             <char>     <char>        <int>       <int> <char>    <char>
     # 1:         COSU619          2     61494856    65564634    AMP  NCIH1792
     # 2:         COSU619          2     57777333    61494483    AMP  NCIH1792
+
+    cm_cna_2 <- cm_cna[GENE_SYMBOL %in% g] %>%
+      .[, gr := MUT_TYPE] %>%
+      .[MUT_TYPE == "gain", gr := "AMP"] %>%
+      .[MUT_TYPE == "loss", gr := "DeepDel"] %>%
+      merge(dp_cm[, .(COSMIC_SAMPLE_ID, depmap_ModelID)], by.x = "COSMIC_SAMPLE_ID", by.y = "COSMIC_SAMPLE_ID") %>%
+      merge(sample_ano[, .(cell_line, ModelID)], by.x = "depmap_ModelID", by.y = "ModelID")
 
     #- NO CNA from COSMIC
     if (nrow(cm_cna_2) != 0) {
