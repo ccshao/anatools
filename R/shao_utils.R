@@ -908,8 +908,8 @@ depmap_cosmic_mut_cna <- function(g,
                 depmap_mut_w  = dp_mut_2_w,
                 depmap_cna    = dp_cna_2,
                 depmap_cna_w  = dp_cna_2_w,
-                cosmic_mut    = cm_cna_2,
-                cosmic_mut_w  = cm_cna_2_w,
+                cosmic_mut    = cm_mut_2,
+                cosmic_mut_w  = cm_mut_2_w,
                 cosmic_cna    = cm_cna_2,
                 cosmic_cna_w  = cm_cna_2_w))
   } else {
