@@ -13,6 +13,7 @@ bbplt(
   plt_palette,
   with_beeswarm = FALSE,
   test_comp = list(),
+  pre_calulated_test = NULL,
   test_method = "t.test",
   title,
   subtitle = NULL,
@@ -45,6 +46,8 @@ bbplt(
 \item{with_beeswarm, }{whether add beeswarm points to the boxplots.}
 
 \item{test_comp, }{list for comparisons among groups. E.g., list(c("A", "B")): A vs. B. Student's t-test is used.}
+
+\item{pre_calulated_test, }{a data.table MUST with columns "symbol" (unique) and "pvalue".}
 
 \item{test_method, }{t-test is used as default.}
 
