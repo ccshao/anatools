@@ -103,6 +103,7 @@ boxplt_uniq_mult <- function(one_id,
 #' @param plt_palette, color palette for plotting.
 #' @param with_beeswarm, whether add beeswarm points to the boxplots.
 #' @param test_comp, list for comparisons among groups. E.g., list(c("A", "B")): A vs. B. Student's t-test is used.
+#' @param pre_calulated_test, a data.table MUST with columns "symbol" (unique) and "pvalue".
 #' @param test_method, t-test is used as default.
 #' @param title, title info.
 #' @param subtitle, subtitle info.
@@ -127,6 +128,7 @@ bbplt <- function(g,
     plt_palette,
     with_beeswarm = FALSE,
     test_comp = list(),
+    pre_calulated_test = NULL,
     test_method = "t.test",
     title,
     subtitle = NULL,
@@ -144,7 +146,7 @@ bbplt <- function(g,
   if (!("ggsignif" %in% utils::installed.packages()[, "Package"])) stop("(EE) Require the package ggsignif.")
   if (!("ggbeeswarm" %in% utils::installed.packages()[, "Package"])) stop("(EE) Require the package ggbeeswarm.")
 
-  value <- NULL
+  value <- symbol <- pvalue <- NULL
 
   if (g %in% rownames(mtx)) {
     plt_dta <- data.table(value = mtx[g, ], match_id = colnames(mtx)) %>%
@@ -166,15 +168,29 @@ bbplt <- function(g,
 
     if (! is.null(ylim)) p00 <- p00 + ylim(ylim)
 
-    p01 <- p00 +
-      labs(x = xlab, y = paste(g, ylab), title = stringr::str_wrap(title, title_wrap), subtitle = stringr::str_wrap(subtitle, 50)) +
-      scale_fill_manual(values = plt_palette, guide = "none") +
-      geom_signif(comparisons   = test_comp,
-                  test          = test_method,
-                  test.args     = list(paired = paired_test),
-                  step_increase = 0.1,
-                  color         = "black") +
-      theme_bw(16)
+    if (is.null(pre_calulated_test)) {
+      p01 <- p00 +
+        labs(x = xlab, y = paste(g, ylab), title = stringr::str_wrap(title, title_wrap), subtitle = stringr::str_wrap(subtitle, 50)) +
+        scale_fill_manual(values = plt_palette, guide = "none") +
+        geom_signif(comparisons   = test_comp,
+                    test          = test_method,
+                    test.args     = list(paired = paired_test),
+                    step_increase = 0.1,
+                    map_signif_level = \(p) paste("p =", signif(p, 4)),
+                    color         = "black") +
+        theme_bw(16)
+    } else {
+      pvalue <- signif(pre_calulated_test[symbol == g]$pvalue, 4)
+      p01 <- p00 +
+        labs(x = xlab, y = paste(g, ylab), title = stringr::str_wrap(title, title_wrap), subtitle = stringr::str_wrap(subtitle, 50)) +
+        scale_fill_manual(values = plt_palette, guide = "none") +
+        geom_signif(comparisons   = test_comp,
+                    annotations = paste("p =", pvalue),
+                    step_increase = 0.1,
+                    color         = "black") +
+        theme_bw(16)
+    }
+
 
     if (ylab_rotate) p01 <- p01 + theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
