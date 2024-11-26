@@ -646,23 +646,23 @@ get_geo <- function(x, GPL, gene_anno = NULL) {
 #' @return A list of annotations.
 #' @examples
 #' \dontrun{
-#' 'load("Depmap/24Q2/data.DepMap.24Q2.rda")
-#' '#- Get the symbols for CNA and expression.
-#' 'colnames(cna_tab)  <- gsub("\\s.*$", "", colnames(cna_tab), perl = TRUE)
-#' 'colnames(expr_tab) <- gsub("\\s.*$", "", colnames(expr_tab), perl = TRUE)
-#' '#- COSMIC data.
-#' 'cm_mut <- qs::qread("CellLinesProject_GenomeScreensMutant_v100_GRCh38.qs", nthreads = 4)
-#' 'cm_cna <- readRDS("CellLinesProject_CompleteCNA_v100_GRCh38.rds")
-#' 'dp_cm  <- readRDS("CellLinesProject_Sample_v100_GRCh38_depmapID.rds")
-#' '
-#' '#- Mutations and CNA
-#' 'g <- c("KRAS", "TP53", "ALK", "BRAF", "CDKN2A", )
-#' 'res_1 <- fn_cosmic_mut_cna(g, ano, dp_cm, expr_tab, MUT_CNA = TRUE,
-#'   dp_mut_tab, cna_tab, cm_mut, cm_cna)
+#' load("Depmap/24Q2/data.DepMap.24Q2.rda")
+#' #- Get the symbols for CNA and expression.
+#' colnames(cna_tab)  <- gsub("\\s.*$", "", colnames(cna_tab), perl = TRUE)
+#' colnames(expr_tab) <- gsub("\\s.*$", "", colnames(expr_tab), perl = TRUE)
+#' #- COSMIC data.
+#' cm_mut <- qs::qread("CellLinesProject_GenomeScreensMutant_v100_GRCh38.qs", nthreads = 4)
+#' cm_cna <- readRDS("CellLinesProject_CompleteCNA_v100_GRCh38.rds")
+#' dp_cm  <- readRDS("CellLinesProject_Sample_v100_GRCh38_depmapID.rds")
 #'
-#' '#- Expression for the CBM genes.
-#' 'g <- c("KRAS", "EGFR", "CARD9", "CARD10")
-#' 'res_2 <- fn_cosmic_mut_cna(g, ano, dp_cm, expr_tab, MUT_CNA = FALSE)
+#' #- Mutations and CNA
+#' g <- c("KRAS", "TP53", "ALK", "BRAF", "CDKN2A")
+#' res_1 <- depmap_cosmic_mut_cna(g, ano, dp_cm, expr_tab, MUT_CNA = TRUE,
+#'  dp_mut_tab, cna_tab, cm_mut, cm_cna)
+#'
+#' #- Expression for the CBM genes.
+#' g <- c("KRAS", "EGFR", "CARD9", "CARD10")
+#' res_2 <- depmap_cosmic_mut_cna(g, ano, dp_cm, expr_tab, MUT_CNA = FALSE)
 #' }
 #' @export
 depmap_cosmic_mut_cna <- function(g,
