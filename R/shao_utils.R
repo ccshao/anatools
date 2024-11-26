@@ -727,14 +727,20 @@ depmap_cosmic_mut_cna <- function(g,
       .[, Protein_Change := gsub("Ter", "*", Protein_Change)] #- Align with COSMIC for termination, which uses * for termination.
 
     #- wide.
-    dp_mut_2_w <- dcast(dp_mut_2, cell_line ~ Hugo_Symbol, value.var = "Protein_Change", fun.aggregate = \(x) paste(x, collapse = ";")) %>%
-      setnames(1, "cell") %>%
-      setnames(names(.)[-1], paste0(names(.)[-1], "_Mut")) %>%
-      .[sample_ano$cell_line, on = "cell"] #- To include all cells
+    if (nrow(dp_mut_2) != 0) {
+      dp_mut_2_w <- dcast(dp_mut_2, cell_line ~ Hugo_Symbol, value.var = "Protein_Change", fun.aggregate = \(x) paste(x, collapse = ";")) %>%
+        setnames(1, "cell") %>%
+        setnames(names(.)[-1], paste0(names(.)[-1], "_Mut")) %>%
+        .[sample_ano$cell_line, on = "cell"] #- To include all cells
 
-    #- Now treat them as WT, later if ModelID is na, replace with NA.
-    #- If those genes are all WT in a cell line, the above "on = "cell"" make NA as well.
-    dp_mut_2_w[is.na(dp_mut_2_w)] <- ""
+      #- Now treat them as WT, later if ModelID is na, replace with NA.
+      #- If those genes are all WT in a cell line, the above "on = "cell"" make NA as well.
+      dp_mut_2_w[is.na(dp_mut_2_w)] <- ""
+    } else {
+      cc_1 <- paste0(g, "_Mut")
+      dp_mut_2_w <- data.table(cell = sample_ano$cell_line) %>%
+        .[, (cc_1) := ""]
+    }
 
     #- !! CNA Depmap
     #- Mina methods for CNA categories.
@@ -752,12 +758,18 @@ depmap_cosmic_mut_cna <- function(g,
                       value > 3.36/2, "AMP",
                       default = "")]
 
-    dp_cna_2_w <- dcast(dp_cna_2, cell_line ~ variable, value.var = "gr") %>%
-      setnames(1, "cell") %>%
-      setnames(names(.)[-1], paste0(names(.)[-1], "_CNA")) %>%
-      .[sample_ano$cell_line, on = "cell"]
+    if (nrow(dp_cna_2) != 0) {
+      dp_cna_2_w <- dcast(dp_cna_2, cell_line ~ variable, value.var = "gr") %>%
+        setnames(1, "cell") %>%
+        setnames(names(.)[-1], paste0(names(.)[-1], "_CNA")) %>%
+        .[sample_ano$cell_line, on = "cell"]
 
-    dp_cna_2_w[is.na(dp_cna_2_w)] <- ""
+      dp_cna_2_w[is.na(dp_cna_2_w)] <- ""
+    } else {
+      cc_1 <- paste0(g, "_CNA")
+      dp_cna_2_w <- data.table(cell = sample_ano$cell_line) %>%
+        .[, (cc_1) := ""]
+    }
 
     stopifnot(identical(dp_mut_2_w$cell, dp_cna_2_w$cell))
     stopifnot(identical(exp_tab_2$cell, dp_cna_2_w$cell))
