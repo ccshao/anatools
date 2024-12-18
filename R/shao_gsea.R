@@ -192,7 +192,8 @@ fn_GSEA_single_enrich_plot <- function(dta, db, gene, gset, output_dir = ".", ou
   pathway <- NULL
   p01 <- fgsea::plotEnrichment(db[[gset]], gene) +
     labs(title = gset) +
-    annotate("text", Inf, Inf, label = paste0("NES: ", round(dta[pathway == gset]$NES, 2), "\n", "FDR: ", round(dta[pathway == gset]$padj, 2)), hjust = 1, vjust = 1)
+    # annotate("text", Inf, Inf, label = paste0("NES: ", round(dta[pathway == gset]$NES, 2), "\n", "FDR: ", round(dta[pathway == gset]$padj, 2)), hjust = 1, vjust = 1)
+    annotate("text", Inf, Inf, label = paste0("NES: ", round(dta[pathway == gset]$NES, 2), "\n", "FDR: ", signif(dta[pathway == gset]$padj, 2)), hjust = 1, vjust = 1)
 
     if (save_png) {
       ggsave(file.path(output_dir, paste0(out_name, "_", sub("/", "_", gset, fixed = TRUE), ".png")), p01, width = width, height = height)
