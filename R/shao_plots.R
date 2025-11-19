@@ -84,7 +84,7 @@ boxplt_uniq_mult <- function(one_id,
                 color         = "black") +
     theme_bw(16)
 
-  ggsave(paste0(plt_pref, "_", g, "_", one_id, ".png") %>% file.path(plt_dir, .),
+  ggsave(paste0(plt_pref, "_", g, "_", one_id, ".pdf") %>% file.path(plt_dir, .),
          p01,
          width = width,
          height = height)
@@ -130,7 +130,7 @@ bbplt <- function(g,
     test_comp = list(),
     pre_calulated_test = NULL,
     test_method = "t.test",
-    title,
+    title = NULL,
     subtitle = NULL,
     title_wrap = 50,
     xlab = "",
@@ -199,7 +199,7 @@ bbplt <- function(g,
 
     if (ylab_rotate) p01 <- p01 + theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
-    ggsave(paste0(plt_pref, "_", g, ".png") %>% file.path(plt_dir, .),
+    ggsave(paste0(plt_pref, "_", g, ".pdf") %>% file.path(plt_dir, .),
            p01,
            width  = width,
            height = height)
